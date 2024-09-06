@@ -1,0 +1,96 @@
+#import libraries
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+
+#Load the Iris dataset
+iris = load_iris()
+data = iris.data[:, :2]  # Selecting only sepal length and sepal width
+
+# PCA function return eigenvalues
+def pca(data):
+    # Center the data (subtract the mean of each feature)
+    mean_centered_data = data - np.mean(data, axis=0)
+
+    # Compute the covariance matrix
+    covariance_matrix = np.cov(mean_centered_data, rowvar=False)
+
+    # Perform eigen decomposition to get eigenvalues and eigenvectors
+    eigenvalues, eigenvectors = np.linalg.eigh(covariance_matrix)
+
+    # Sort eigenvalues and corresponding eigenvectors in descending order
+    sorted_indices = np.argsort(eigenvalues)[::-1]
+    sorted_eigenvalues = eigenvalues[sorted_indices]
+    sorted_eigenvectors = eigenvectors[:, sorted_indices]
+
+    return sorted_eigenvalues, sorted_eigenvectors, mean_centered_data
+
+# call PCA to get eigenvalues and eigenvectors
+eigenvalues, eigenvectors, mean_centered_data = pca(data)
+
+# (a) Compute the percentage of variance
+def compute_variance_captured(eigenvalues):
+    total_variance = np.sum(eigenvalues)
+    variance_explained = eigenvalues / total_variance
+    return variance_explained
+
+variance_explained = compute_variance_captured(eigenvalues)
+
+print(f"Variance explained by the first PC: {variance_explained[0] * 100:.2f}%")
+print(f"Variance explained by the second PC: {variance_explained[1] * 100:.2f}%")
+
+# Plot the original data, principal components, and transformed data
+def plot_pca_results(data, principal_components, reduced_data, mean_centered_data):
+    # Plot the original data points
+    plt.scatter(data[:, 0], data[:, 1], color='b', label='Original Data')
+
+    # Plot the mean of the data
+    mean_point = np.mean(data, axis=0)
+    plt.scatter(mean_point[0], mean_point[1], color='red', label='Mean')
+
+    # Plot the principal components as vectors
+    for i in range(2):
+        pc_vector = principal_components[:, i] * 4  # Scaling for visualization
+        plt.arrow(mean_point[0], mean_point[1], pc_vector[0], pc_vector[1], color='g',
+                  width=0.02, label=f'PC{i+1}' if i == 0 else None)
+
+    # Plot the transformed data in the principal component space
+    for i in range(len(data)):
+        transformed_point = np.dot(principal_components.T, mean_centered_data[i])
+        original_point = np.dot(transformed_point, principal_components.T) + mean_point
+        plt.plot([data[i, 0], original_point[0]], [data[i, 1], original_point[1]], 'k--')
+        plt.scatter(original_point[0], original_point[1], color='orange')
+
+    plt.xlabel('Sepal Length')
+    plt.ylabel('Sepal Width')
+    plt.title('PCA on Iris Dataset (First 2 Features)')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+plot_pca_results(data, eigenvectors, None, mean_centered_data)
+
+# Calculate the Minimum Squared Error (MSE) when retaining only the first PC
+def calculate_mse_first_pc(eigenvectors, mean_centered_data):
+    # Project the data onto the first principal component
+    first_pc = eigenvectors[:, 0]
+    projections_onto_first_pc = np.dot(mean_centered_data, first_pc)
+
+    # Reconstruct the data from the first PC
+    reconstructed_data = np.outer(projections_onto_first_pc, first_pc)
+
+    # Calculate the squared error
+    mse = np.mean(np.sum((mean_centered_data - reconstructed_data) ** 2, axis=1))
+    return mse
+
+mse_first_pc = calculate_mse_first_pc(eigenvectors, mean_centered_data)
+print(f"Minimum Squared Error (MSE) when retaining only the first PC: {mse_first_pc:.4f}")
+
+
+
+
+
+
+
+
+
