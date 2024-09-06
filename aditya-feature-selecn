@@ -1,0 +1,129 @@
+import numpy as np
+import pandas as pd
+
+# Mean-based classifier
+class MeanClassifier:
+    def fit(self, X, y):
+        self.class_means_ = {}
+        self.classes_ = np.unique(y)
+        for cls in self.classes_:
+            self.class_means_[cls] = X[y == cls].mean(axis=0)
+
+    def predict(self, X):
+        distances = np.array([np.linalg.norm(X - mean, axis=1) for mean in self.class_means_.values()]).T
+        return np.array([self.classes_[np.argmin(dist)] for dist in distances])
+
+# Manual train-test split
+def train_test_split_manual(X, y, test_size=0.3, random_state=None):
+    np.random.seed(random_state)
+    indices = np.arange(X.shape[0])
+    np.random.shuffle(indices)
+
+    test_size = int(test_size * X.shape[0])
+    test_indices = indices[:test_size]
+    train_indices = indices[test_size:]
+
+    X_train, X_test = X[train_indices], X[test_indices]
+    y_train, y_test = y[train_indices], y[test_indices]
+
+    return X_train, X_test, y_train, y_test
+
+# Forward selection with multiple features and manual split
+def forward_selection(df, target_col):
+    selected_features = []
+    remaining_features = list(df.columns)
+    remaining_features.remove(target_col)
+    best_accuracy = 0
+    best_features = []
+
+    while remaining_features:
+        feature_to_add = None
+
+        # Handle the case where num_features_to_add is 1
+        for feature in remaining_features:
+            features = selected_features + [feature]
+            X = df[features].values
+            y = df[target_col].values
+
+            X_train, X_test, y_train, y_test = train_test_split_manual(X, y, test_size=0.4, random_state=40)
+
+            model = MeanClassifier()
+            model.fit(X_train, y_train)
+            predictions = model.predict(X_test)
+            accuracy = np.mean(predictions == y_test)
+
+            print(f"Evaluating features: {features}, Accuracy: {accuracy}")
+
+            if accuracy > best_accuracy:
+                best_accuracy = accuracy
+                feature_to_add = [feature]
+                best_features = features
+
+        if feature_to_add is not None:
+            selected_features.extend(feature_to_add)
+            for feat in feature_to_add:
+                remaining_features.remove(feat)
+        else:
+            break
+
+    print(f"Best features: {best_features}, Best accuracy: {best_accuracy}")
+    return selected_features, best_accuracy
+
+# Example usage
+# df = your_dataframe_here
+# best_features, best_accuracy = forward_selection(df, 'target_column_name', num_features_to_add=1)
+df = pd.read_csv("Wine dataset.csv")
+# df =df.drop('Sex',axis=1)
+best_features, best_accuracy = forward_selection(df, 'class')
+
+# Mean-based classifier (as defined earlier)
+
+# Manual train-test split (as defined earlier)
+
+# Backward selection with multiple features and manual split
+def backward_selection(df, target_col):
+    selected_features = list(df.columns)
+    selected_features.remove(target_col)
+    best_accuracy = 0
+    best_features = []
+
+    while selected_features:
+        feature_to_remove = None
+
+        # Handle the case where num_features_to_remove is 1
+        for feature in selected_features:
+            features = [f for f in selected_features if f != feature]
+            X = df[features].values
+            y = df[target_col].values
+
+            # Manual split
+            X_train, X_test, y_train, y_test = train_test_split_manual(X, y, test_size=0.3, random_state=42)
+
+            model = MeanClassifier()
+            model.fit(X_train, y_train)
+            predictions = model.predict(X_test)
+            accuracy = np.mean(predictions == y_test)
+
+            print(f"Evaluating features: {features}, Accuracy: {accuracy:.4f}")
+
+            if accuracy > best_accuracy:
+                best_accuracy = accuracy
+                feature_to_remove = [feature]
+                best_features = features
+
+        if feature_to_remove is not None:
+            for feat in feature_to_remove:
+                selected_features.remove(feat)
+        else:
+            break
+
+    print(f"Best features: {best_features}, Best accuracy: {best_accuracy}")
+    return selected_features, best_accuracy
+
+# Example usage
+# df = your_dataframe_here
+# best_features, best_accuracy = backward_selection(df, 'target_column_name', num_features_to_remove=1)
+df = pd.read_csv("Wine dataset.csv")
+# df =df.drop('Sex',axis=1)
+best_features, best_accuracy = backward_selection(df, 'class')
+
